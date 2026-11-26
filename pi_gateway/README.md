@@ -1,4 +1,4 @@
-# Pi 5 drowsiness detector (v1)
+# Pi 5 gateway — drowsiness detector
 
 Live video: `rpicam-vid` MJPEG pipe -> OpenCV -> MediaPipe Face Mesh -> eye aspect ratio (EAR).
 Alerts when EAR stays below a threshold for N consecutive frames.
@@ -6,11 +6,11 @@ Alerts when EAR stays below a threshold for N consecutive frames.
 ## Setup
 From this folder on the Mac:
 
-    ./scripts/deploy.sh
+    ../tools/deploy_pi.sh
 
 On the Pi (needs `uv`; it fetches Python 3.11 itself):
 
-    cd ~/iot_term/v1
+    cd ~/iot_term/pi_gateway
     uv sync
     uv run python -u -m drowsiness.main --calibrate --stream-port 8000
 

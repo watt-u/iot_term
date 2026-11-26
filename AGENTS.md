@@ -1,9 +1,13 @@
 # AGENTS.md — iot_term
 
-Two parts live here:
+Car drowsiness detector (IoT term project). **Start with `PLAN.md`** (milestones, requirement map, decisions).
+The MQTT topics and payloads in `docs/mqtt_contract.md` are the contract between all parts.
 
-- `iot_term_v1/` — ESP32-S3 firmware (PlatformIO, Arduino framework). **This file is mostly about this part.**
-- `v1/` — Raspberry Pi 5 drowsiness detector (Python, uv). See `v1/README.md`; deploy with `v1/scripts/deploy.sh` (rsync to `bum@g3pi.local`).
+- `esp32_node/` — ESP32-S3 sensor node firmware (PlatformIO, Arduino framework). **Most of this file is about this part.** Plan: `esp32_node/PLAN.md`.
+- `pi_gateway/` — Raspberry Pi 5 gateway: camera drowsiness detection (Python, uv) and Pi sensors. See `pi_gateway/README.md` and `pi_gateway/PLAN.md`.
+- `server/` — On-prem server on the Pi: Docker (Mosquitto, InfluxDB, Grafana) and `server.py`. Plan: `server/PLAN.md`.
+- `docs/` — MQTT contract, evaluation, slides and video plans.
+- `tools/` — `serial_capture.py` (ESP32 serial) and `deploy_pi.sh` (rsyncs `pi_gateway/` and `server/` to `bum@g3pi.local:~/iot_term/`).
 
 ## Hardware
 
@@ -26,7 +30,7 @@ Two parts live here:
 
 ## Dev cycle
 
-Run these from `iot_term_v1/`:
+Run these from `esp32_node/`:
 
 ```bash
 ~/.platformio/penv/bin/pio run                    # build
@@ -42,7 +46,7 @@ Run these from `iot_term_v1/`:
 `pio device monitor` never exits, so don't run it in the foreground. Use the helper instead. It reads for a fixed time and then exits:
 
 ```bash
-~/.platformio/penv/bin/python tools/serial_capture.py --seconds 8 --reset
+~/.platformio/penv/bin/python ../tools/serial_capture.py --seconds 8 --reset
 ```
 
 - `--reset` reboots the board first so you capture the boot log. Leave it out to just listen.

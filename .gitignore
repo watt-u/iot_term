@@ -5,5 +5,12 @@
 __pycache__/
 *.pyc
 
-# PlatformIO (more in iot_term_v1/.gitignore)
+# PlatformIO (more in esp32_node/.gitignore)
 .pio/
+
+# Secrets and local data
+esp32_node/src/secrets.h
+server/.env
+server/data/
+pi_gateway/alerts/
+docs/eval_data/*.mp4
