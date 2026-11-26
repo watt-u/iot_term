@@ -1,6 +1,6 @@
 # ESP32 sensor node — plan (milestone M2)
 
-The sensor node reads 3 sensors, publishes them over MQTT, and drives the buzzer and LED from `car/cmd/alert`.
+The sensor node reads 3 sensors (MPU6050, MQ-2, LDR), publishes them over MQTT, and drives the buzzer and LED from `car/cmd/alert`.
 Topics and payloads: [../docs/mqtt_contract.md](../docs/mqtt_contract.md). Build and flash commands: [../AGENTS.md](../AGENTS.md).
 
 ## Wiring (ESP32-S3 DevKitC-1 N16R8)
@@ -9,12 +9,10 @@ Topics and payloads: [../docs/mqtt_contract.md](../docs/mqtt_contract.md). Build
 |---|---|---|---|
 | MPU6050 | VCC / GND | 3V3 / GND | |
 | | SDA / SCL | **GPIO 10 / GPIO 9** | I2C address 0x68 (AD0 low). Already working. |
-| Mic KY-037/038 | + / G | 3V3 / GND | |
-| | AO | **GPIO 4** (ADC1) | Already working in commit `f567fad`. |
-| CO₂ (MQ-135) | VCC / GND | 5V / GND | Heater needs 5 V and about 24 h burn-in for stable readings |
-| | AO | **GPIO 6** (ADC1) through a 10k/20k divider | AO can reach 5 V; the ESP32 ADC takes max 3.3 V |
-| CO₂ (MH-Z19, if that model) | TX / RX | **GPIO 17 (RX1) / GPIO 18 (TX1)** | 5 V power, 3.3 V logic |
-| CO₂ (SCD40, if that model) | SDA / SCL | same bus as the MPU6050 | Address 0x62, no conflict |
+| LDR light module | VCC / GND | 3V3 / GND | 3V3 keeps AO under 3.3 V, no divider needed |
+| | AO | **GPIO 4** (ADC1) | DO unused |
+| Smoke (MQ-2) | VCC / GND | 5V / GND | Heater needs 5 V (~150 mA) and a warm-up; 24 h burn-in for stable readings |
+| | AO | **GPIO 6** (ADC1) through a 10k/20k divider | AO can reach 5 V; the ESP32 ADC takes max 3.3 V. DO unused |
 | Buzzer KY-012 | S / − | **GPIO 12** / GND | Active buzzer: HIGH = sound. If it's quiet, drive it from 5 V through an NPN transistor. |
 | RGB LED KY-016 | R / G / B / − | **GPIO 13 / 14 / 21** / GND | Common cathode. Yellow = R + G. Use `ledcWrite` (PWM) to balance colors. |
 
@@ -30,11 +28,11 @@ Keep it in a few small files under `src/`:
 | `main.cpp` | `setup()` and the `loop()` scheduler: non-blocking `millis()` timers, no `delay()` |
 | `net.cpp/.h` | Wi-Fi connect and reconnect, mDNS lookup of `g3pi.local`, PubSubClient connect, subscribe, publish |
 | `imu.cpp/.h` | MPU6050 raw I2C (move the code out of the current `main.cpp`), `a_mag`, impact flag |
-| `mic.cpp/.h` | Sound level and loud trigger (bring back from `git show f567fad:iot_term_v1/src/main.cpp`) |
-| `co2.cpp/.h` | Depends on the model |
+| `light.cpp/.h` | LDR module: light %, dark flag with hysteresis |
+| `smoke.cpp/.h` | MQ-2: warm-up, R0 calibration, smoke ppm estimate |
 | `alert.cpp/.h` | Parse `car/cmd/alert` with ArduinoJson; set the LED color and buzzer pattern |
 | `secrets.h` | Wi-Fi SSID, password, fallback broker IP. **Gitignored.** Commit a `secrets.example.h`. |
-| `config.h` | Pins, rates, thresholds and the `CO2_SENSOR` choice |
+| `config.h` | Pins, rates and thresholds |
 
 Libraries for `lib_deps`: `knolleary/PubSubClient`, `bblanchon/ArduinoJson@^7`. (MPU6050 stays raw I2C, no library.)
 
@@ -46,12 +44,12 @@ Libraries for `lib_deps`: `knolleary/PubSubClient`, `bblanchon/ArduinoJson@^7`. 
 2. [x] **IMU.** Move the MPU6050 code into `imu.cpp`. Publish `car/node/motion` at 5 Hz.
    *Implemented, untested on hardware* (`imu.cpp`). Accel range is now ±8 g (±2 g could never reach the 2.5 g impact threshold).
    *Check:* tap the board hard; `impact: true` shows up.
-3. [x] **Mic.** Bring back the sound-level code. Add `sound` and `loud` to `car/node/air`.
-   *Implemented, untested on hardware* (`mic.cpp`, now non-blocking).
-   *Check:* clap; `loud: true` shows up.
-4. [x] **CO₂.** Read the sensor and add `co2`.
-   *Implemented for all three models, untested on hardware* (`co2.cpp`, pick with `CO2_SENSOR` in `config.h`, default MQ-135).
-   *Check:* breathe on it; the value goes up.
+3. [x] **Light (LDR).** Add `light`, `light_raw` and `dark` to `car/node/air`. (Replaced the microphone on 2026-11-26.)
+   *Implemented, untested on hardware* (`light.cpp`).
+   *Check:* cover the LDR; `dark: true` shows up.
+4. [x] **Smoke (MQ-2).** Add `smoke` and `smoke_raw`. (Replaced the CO₂ sensor on 2026-11-26.)
+   *Implemented, untested on hardware* (`smoke.cpp`).
+   *Check:* after the 30 s warm-up, a blown-out match or unlit lighter gas near it makes `smoke` rise.
 5. [x] **Alert subscriber.** Subscribe to `car/cmd/alert`. Green = ok, yellow = warning, red and beeping (200 ms on / 200 ms off) = danger.
    *Check:* `mosquitto_pub -h g3pi.local -t car/cmd/alert -r -m '{"level":"danger","reason":"test"}'`.
    *Implemented, untested on hardware* (`alert.cpp`, also mirrored on the onboard RGB LED).

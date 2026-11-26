@@ -5,7 +5,7 @@ import pytest
 from rules import ALERT_OK, Alert, RulesEngine, Thresholds
 
 CONTRACT = Thresholds(
-    co2_ppm=1500,
+    smoke_ppm=300,
     temp_c=35,
     distance_cm=25,
     distance_hold_s=3,
@@ -45,8 +45,8 @@ def motion(impact=False):
     return {"ts": 0, "ax": 0, "ay": 0, "az": 1, "gx": 0, "gy": 0, "gz": 0, "a_mag": 3.0 if impact else 1.0, "impact": impact}
 
 
-def air(co2=800):
-    return {"ts": 0, "co2": co2, "sound": 10, "loud": False}
+def air(smoke=20):
+    return {"ts": 0, "smoke": smoke, "smoke_raw": 400, "light": 60.0, "light_raw": 1600, "dark": False}
 
 
 def cabin(temp=30.0, distance=50.0):
@@ -72,7 +72,7 @@ def test_all_normal_is_ok(eng):
 
 
 def test_level_num():
-    assert Alert("warning", "co2").level_num == 1
+    assert Alert("warning", "smoke").level_num == 1
     assert Alert("danger", "drowsy").level_num == 2
 
 
@@ -175,12 +175,12 @@ def test_impact_must_be_real_bool(eng):
 
 
 # ------------------------------------------------------------------ warnings
-def test_co2_warning(eng):
-    eng.update("air", air(co2=1500))
+def test_smoke_warning(eng):
+    eng.update("air", air(smoke=300))
     assert eng.evaluate() == ALERT_OK  # strictly greater than
-    eng.update("air", air(co2=1501))
-    assert eng.evaluate() == Alert("warning", "co2")
-    eng.update("air", air(co2=900))
+    eng.update("air", air(smoke=301))
+    assert eng.evaluate() == Alert("warning", "smoke")
+    eng.update("air", air(smoke=50))
     assert eng.evaluate() == ALERT_OK
 
 
@@ -264,7 +264,7 @@ def test_no_face_timer_resets(eng, clock):
 
 # ------------------------------------------------------------------ priority
 def test_danger_beats_warning(eng):
-    eng.update("air", air(co2=3000))
+    eng.update("air", air(smoke=600))
     eng.update("cabin", cabin(temp=40))
     eng.update("motion", motion(impact=True))
     assert eng.evaluate() == Alert("danger", "impact")
@@ -278,10 +278,10 @@ def test_drowsy_wins_tie_with_impact(eng):
 
 
 def test_warning_order_is_stable(eng, clock):
-    eng.update("air", air(co2=2000))
+    eng.update("air", air(smoke=400))
     eng.update("cabin", cabin(temp=40))
-    assert eng.evaluate() == Alert("warning", "co2")
-    eng.update("air", air(co2=800))
+    assert eng.evaluate() == Alert("warning", "smoke")
+    eng.update("air", air(smoke=20))
     assert eng.evaluate() == Alert("warning", "heat")
 
 
@@ -331,8 +331,8 @@ def test_stale_motion_never_triggers_impact(eng, clock):
     assert eng.evaluate() == ALERT_OK  # hold was dropped while stale
 
 
-def test_stale_air_drops_co2_warning(eng, clock):
-    eng.update("air", air(co2=2000))
+def test_stale_air_drops_smoke_warning(eng, clock):
+    eng.update("air", air(smoke=400))
     clock.advance(6)
     assert eng.evaluate() == ALERT_OK
 
@@ -345,14 +345,14 @@ def test_stale_cabin_drops_warnings(eng, clock):
 
 def test_fresh_source_still_works_when_another_is_stale(eng, clock):
     eng.update("driver", driver("drowsy"))
-    eng.update("air", air(co2=2000))
+    eng.update("air", air(smoke=400))
     clock.advance(6)
-    eng.update("air", air(co2=2000))
-    assert eng.evaluate() == Alert("warning", "co2")
+    eng.update("air", air(smoke=400))
+    assert eng.evaluate() == Alert("warning", "smoke")
 
 
 def test_bad_values_are_ignored(eng):
-    eng.update("air", {"co2": "lots"})
+    eng.update("air", {"smoke": "lots"})
     eng.update("cabin", {"temp": float("nan"), "distance": True})
     eng.update("driver", {"state": 3})
     assert eng.evaluate() == ALERT_OK

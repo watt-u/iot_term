@@ -4,16 +4,6 @@
 
 #include <Arduino.h>
 
-// ---- CO2 sensor model -------------------------------------------------------
-// Pick one. You can also override it from platformio.ini:
-//   build_flags = ... -DCO2_SENSOR=CO2_SCD40
-#define CO2_MQ135 1  // analog, AO on CO2_AO_PIN through a 10k/20k divider
-#define CO2_MHZ19 2  // UART on CO2_RX_PIN / CO2_TX_PIN, 9600 baud
-#define CO2_SCD40 3  // I2C on the shared bus, address 0x62
-#ifndef CO2_SENSOR
-#define CO2_SENSOR CO2_MQ135
-#endif
-
 // ---- Pins -------------------------------------------------------------------
 // Avoid 19/20 (native USB), 26-37 (flash/PSRAM), 0/3/45/46 (strapping).
 // Analog inputs must be on ADC1 (GPIO 1-10): ADC2 stops working with Wi-Fi on.
@@ -21,11 +11,8 @@
 #define I2C_SCL_PIN 9
 #define I2C_FREQ_HZ 400000
 
-#define MIC_AO_PIN 4  // KY-037/038 AO (ADC1_CH3)
-
-#define CO2_AO_PIN 6   // MQ-135 AO via divider (ADC1_CH5)
-#define CO2_RX_PIN 17  // ESP32 RX  <- MH-Z19 TX
-#define CO2_TX_PIN 18  // ESP32 TX  -> MH-Z19 RX
+#define LDR_AO_PIN 4    // LDR photosensitive module AO, powered from 3V3 (ADC1_CH3)
+#define SMOKE_AO_PIN 6  // MQ-2 AO via 10k/20k divider (ADC1_CH5)
 
 #define BUZZER_PIN 12  // KY-012 active buzzer, HIGH = sound
 #define LED_R_PIN 13   // KY-016 RGB LED, common cathode
@@ -60,26 +47,25 @@ const uint32_t IMU_SAMPLE_MS = 5;         // read the MPU6050 at 200 Hz
 const uint32_t IMPACT_MIN_GAP_MS = 200;   // limit immediate impact publishes
 const uint32_t IMU_RETRY_MS = 5000;       // retry init if the MPU is missing
 
-// ---- Mic (same tuning as commit f567fad) ------------------------------------
-const uint32_t MIC_WINDOW_MS = 20;
-const float MIC_LOUD_FACTOR = 5.0f;   // trigger at N x the room's background
-const float MIC_MIN_LEVEL = 5.0f;     // also require level >= this
-const uint32_t MIC_COOLDOWN_MS = 1000;
-const float MIC_BG_RISE_SEC = 10.0f;  // background follows a louder room in ~10 s
-const float MIC_BG_FALL_SEC = 2.0f;   // ...and a quieter room in ~2 s
-const uint32_t MIC_LEARN_MS = 2000;   // learn the background before triggering
-const uint32_t MIC_SAMPLE_BUDGET_US = 1000;  // max time per mic_update() call
+// ---- Smoke (MQ-2) -----------------------------------------------------------
+// Estimate: ppm = A * (Rs/R0)^B, fitted to the smoke curve of the MQ-2 datasheet
+// (log-log line through 200 ppm @ Rs/R0 = 3.4 with slope -0.44).
+// The MQ-2 also reacts to LPG, propane, H2 and alcohol, so this is an estimate.
+const float MQ2_A = 3197.0f;
+const float MQ2_B = -2.273f;
+const float MQ2_CLEAN_AIR_RATIO = 9.83f;  // Rs/R0 in clean air (datasheet)
+const float MQ2_RL_KOHM = 1.0f;           // load resistor on the module (often 1k, "102")
+const float MQ2_VC = 5.0f;                // heater/circuit supply
+const float MQ2_DIVIDER = 1.5f;           // V_AO = V_adc * (10k+20k)/20k
+const float MQ2_R0_KOHM = 0.0f;           // 0 = auto-calibrate at boot (assumes clean air)
+const uint32_t MQ2_WARMUP_MS = 20000;     // heater warm-up before calibrating
+const uint32_t MQ2_CAL_MS = 10000;        // then average this long for R0
+const uint32_t SMOKE_READ_MS = 1000;
+const uint32_t SMOKE_STALE_MS = 15000;    // no good reading this long -> send null
 
-// ---- CO2 --------------------------------------------------------------------
-// MQ-135 estimate: ppm = A * (Rs/R0)^B (common datasheet curve fit for CO2).
-const float MQ135_A = 116.6020682f;
-const float MQ135_B = -2.769034857f;
-const float MQ135_RL_KOHM = 1.0f;       // load resistor on the module (often 1k, "102")
-const float MQ135_VC = 5.0f;            // heater/circuit supply
-const float MQ135_DIVIDER = 1.5f;       // V_AO = V_adc * (10k+20k)/20k
-const float MQ135_R0_KOHM = 0.0f;       // 0 = auto-calibrate at boot (assumes fresh air)
-const float MQ135_CAL_PPM = 420.0f;     // fresh-air CO2 used for auto-calibration
-const uint32_t MQ135_CAL_MS = 10000;    // average this long for auto-calibration
-const uint32_t CO2_READ_MS = 1000;
-const uint32_t CO2_STALE_MS = 15000;    // no good reading this long -> send null
-const uint32_t CO2_RETRY_MS = 10000;    // SCD40 re-init when missing
+// ---- Light (LDR module) -------------------------------------------------------
+// Most LM393 LDR modules give a HIGH AO in the dark. Set to 0 if yours is the other way.
+#define LDR_DARK_IS_HIGH 1
+const uint32_t LIGHT_READ_MS = 200;       // sample at 5 Hz, report the 1 s average
+const float LIGHT_DARK_ENTER_PCT = 15.0f; // dark when light < this ...
+const float LIGHT_DARK_EXIT_PCT = 25.0f;  // ... and light again when > this (hysteresis)

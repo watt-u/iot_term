@@ -11,7 +11,7 @@ Rules (thresholds come from a `Thresholds` object; server.py holds the values):
 - danger:  vision state == "drowsy" (latched; clears `drowsy_clear_s` after
            vision reports "open" again, and re-arms if it reports anything else)
            impact == true (held `impact_hold_s` after the last impact message)
-- warning: co2 > co2_ppm, temp > temp_c,
+- warning: smoke > smoke_ppm, temp > temp_c,
            distance < distance_cm continuously for `distance_hold_s`,
            state == "no_face" continuously for `no_face_hold_s`
 - ok:      none of the above
@@ -44,11 +44,11 @@ TOPIC_SOURCE = {
 }
 
 # Tie-break order inside one level (contract: "if two triggers tie, drowsy wins").
-REASON_PRIORITY = ("drowsy", "impact", "co2", "heat", "too_close", "no_face")
+REASON_PRIORITY = ("drowsy", "impact", "smoke", "heat", "too_close", "no_face")
 REASON_LEVEL = {
     "drowsy": DANGER,
     "impact": DANGER,
-    "co2": WARNING,
+    "smoke": WARNING,
     "heat": WARNING,
     "too_close": WARNING,
     "no_face": WARNING,
@@ -57,7 +57,7 @@ REASON_LEVEL = {
 
 @dataclass(frozen=True)
 class Thresholds:
-    co2_ppm: float  # warning when co2 > this
+    smoke_ppm: float  # warning when smoke > this (MQ-2 estimate)
     temp_c: float  # warning when temp > this
     distance_cm: float  # warning when distance < this ...
     distance_hold_s: float  # ... for this long
@@ -97,7 +97,7 @@ class RulesEngine:
         self.clock = clock
         self.last_seen: dict[str, float] = {}
         # Latest values
-        self.co2: float | None = None
+        self.smoke: float | None = None
         self.temp: float | None = None
         self.state: str | None = None
         # Timers / latches
@@ -121,7 +121,7 @@ class RulesEngine:
             self.impact_until = now + self.t.impact_hold_s
 
     def _update_air(self, p: Mapping[str, Any], now: float) -> None:
-        self.co2 = _num(p.get("co2"))
+        self.smoke = _num(p.get("smoke"))
 
     def _update_cabin(self, p: Mapping[str, Any], now: float) -> None:
         self.temp = _num(p.get("temp"))
@@ -184,8 +184,8 @@ class RulesEngine:
                 active.add("impact")
 
         if not self.is_stale("air", now):
-            if self.co2 is not None and self.co2 > t.co2_ppm:
-                active.add("co2")
+            if self.smoke is not None and self.smoke > t.smoke_ppm:
+                active.add("smoke")
 
         if not self.is_stale("cabin", now):
             if self.temp is not None and self.temp > t.temp_c:

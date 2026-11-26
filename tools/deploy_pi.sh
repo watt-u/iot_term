@@ -8,5 +8,5 @@ rsync -az --relative \
   --exclude .venv --exclude alerts --exclude __pycache__ --exclude .env --exclude data \
   ./pi_gateway ./server "$HOST:~/iot_term/"
 echo "Deployed to $HOST:~/iot_term/. On the Pi:"
-echo "  cd ~/iot_term/pi_gateway && uv sync    # then: sudo systemctl restart vision sensors"
-echo "  cd ~/iot_term/server && uv sync && docker compose up -d    # then: sudo systemctl restart server"
+echo "  cd ~/iot_term/pi_gateway && uv sync    # then: sudo systemctl restart vision"
+echo "  cd ~/iot_term/server && uv sync && docker compose up -d    # then: sudo systemctl restart car-server"

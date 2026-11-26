@@ -12,7 +12,7 @@ Every part follows this file. If you change a topic or a field, change it here f
 | Topic | Publisher | Subscriber | Rate | Retain | Purpose |
 |---|---|---|---|---|---|
 | `car/node/motion` | ESP32 | server.py | 5 Hz, plus immediately on impact | no | Crash or hard-braking detection from the IMU |
-| `car/node/air` | ESP32 | server.py | 1 Hz | no | Cabin air quality (CO₂) and noise level |
+| `car/node/air` | ESP32 | server.py | 1 Hz | no | Cabin smoke/gas (MQ-2) and cabin light (LDR) |
 | `car/gateway/cabin` | sensors.py (Pi) | server.py | 1 Hz | no | Cabin heat and driver posture (head-to-wheel distance) |
 | `car/vision/driver` | vision (Pi) | server.py | 2 Hz, plus immediately on a state change | no | Drowsiness result from the camera |
 | `car/cmd/alert` | server.py | ESP32 | on change, plus every 2 s | **yes** | Tells the ESP32 what to show on the buzzer and LED |
@@ -30,11 +30,12 @@ Every part follows this file. If you change a topic or a field, change it here f
 
 ### `car/node/air`
 ```json
-{"ts": 0, "co2": 820, "sound": 14.2, "loud": false}
+{"ts": 0, "smoke": 42, "smoke_raw": 512, "light": 63.5, "light_raw": 1495, "dark": false}
 ```
-- `co2` in ppm. For an MQ-135, it's an estimate; also send `co2_raw` (ADC counts).
-- `sound` = the loudest 20 ms window of the last second (mean absolute deviation of the mic ADC, same method as commit `f567fad`).
-- `loud` = true if the loud trigger (5× background) fired at any time in that second.
+- `smoke` = MQ-2 smoke estimate in ppm (smoke curve of the datasheet, R0 calibrated in clean air at boot). It's an estimate: the MQ-2 also reacts to LPG, propane, H₂ and alcohol. `null` during the first ~30 s (heater warm-up + calibration) or when the signal is out of range.
+- `smoke_raw` = MQ-2 ADC counts (0–4095, after the 10k/20k divider). Always sent once the first read is done.
+- `light` = cabin light from the LDR module, 0–100 % (0 = dark), averaged over the last second. `light_raw` = ADC counts.
+- `dark` = true when `light` < 15 %, and false again above 25 % (hysteresis). `light`/`dark` are `null` only if no sample was taken.
 
 ### `car/gateway/cabin`
 ```json
@@ -54,7 +55,7 @@ Every part follows this file. If you change a topic or a field, change it here f
 {"ts": 1764140000.6, "level": "danger", "reason": "drowsy"}
 ```
 - `level`: `ok` | `warning` | `danger` | `offline`.
-- `reason`: `none` | `drowsy` | `impact` | `co2` | `heat` | `too_close` | `no_face` | `server_offline`.
+- `reason`: `none` | `drowsy` | `impact` | `smoke` | `heat` | `too_close` | `no_face` | `server_offline`.
 - **Change vs. heartbeat:** server.py publishes on every change and re-sends the current level every 2 s. Only changes are written to InfluxDB.
 - **Offline:** server.py sets a retained last will `{"level": "offline", "reason": "server_offline"}` on this topic and publishes it on a clean shutdown. The ESP32 blinks blue (buzzer off) on `offline`, and also when no alert has arrived for 6 s.
 
@@ -63,7 +64,7 @@ Every part follows this file. If you change a topic or a field, change it here f
 | Level | LED | Buzzer | Triggers |
 |---|---|---|---|
 | `danger` | red | on (beeping) | `state == "drowsy"` · `impact == true` (hold 10 s) |
-| `warning` | yellow | off | `co2 > 1500` ppm · `temp > 35` °C · `distance < 25` cm for 3 s · `no_face` for 5 s |
+| `warning` | yellow | off | `smoke > 300` ppm · `temp > 35` °C · `distance < 25` cm for 3 s · `no_face` for 5 s |
 | `ok` | green | off | none of the above |
 
 - The highest level wins. `reason` names the trigger with the highest level; if two triggers tie, `drowsy` wins.
@@ -76,7 +77,7 @@ Every part follows this file. If you change a topic or a field, change it here f
 | Topic | Measurement | Fields | Tags |
 |---|---|---|---|
 | `car/node/motion` | `motion` | ax, ay, az, gx, gy, gz, a_mag, impact | `source=esp32` |
-| `car/node/air` | `air` | co2, sound, loud | `source=esp32` |
+| `car/node/air` | `air` | smoke, smoke_raw, light, light_raw, dark | `source=esp32` |
 | `car/gateway/cabin` | `cabin` | temp, distance | `source=pi` |
 | `car/vision/driver` | `driver` | ear, thresh, closed_frames, fps, drowsy (0/1) | `source=pi`, `state` |
 | `car/cmd/alert` | `alert` | level_num (0/1/2), caption | `level`, `reason` |

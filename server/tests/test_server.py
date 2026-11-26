@@ -25,10 +25,20 @@ def test_motion_mapping_replaces_ts_zero():
 
 
 def test_air_mapping_ignores_extra_fields():
-    p = srv.to_point("car/node/air", {"ts": 0, "co2": 820, "co2_raw": 1234, "sound": 14.2, "loud": True}, 1.0)
+    p = srv.to_point(
+        "car/node/air",
+        {"ts": 0, "smoke": 42, "smoke_raw": 512, "light": 63.5, "light_raw": 1495, "dark": False, "extra": 1},
+        1.0,
+    )
     assert p["measurement"] == "air"
     assert p["tags"] == {"source": "esp32"}
-    assert p["fields"] == {"co2": 820.0, "sound": 14.2, "loud": True}
+    assert p["fields"] == {"smoke": 42.0, "smoke_raw": 512, "light": 63.5, "light_raw": 1495, "dark": False}
+
+
+def test_air_mapping_skips_null_smoke_during_warmup():
+    payload = {"ts": 0, "smoke": None, "smoke_raw": 300, "light": 10.0, "light_raw": 3700, "dark": True}
+    p = srv.to_point("car/node/air", payload, 1.0)
+    assert p["fields"] == {"smoke_raw": 300, "light": 10.0, "light_raw": 3700, "dark": True}
 
 
 def test_cabin_mapping_keeps_sender_ts_and_skips_nulls():
@@ -186,11 +196,11 @@ def test_drowsy_clears_after_open(rig):
 
 
 def test_sensor_messages_are_written(rig):
-    send(rig.server, "car/node/air", {"ts": 0, "co2": 2000, "sound": 3, "loud": False})
+    send(rig.server, "car/node/air", {"ts": 0, "smoke": 400, "smoke_raw": 1800, "light": 50.0, "light_raw": 2000, "dark": False})
     air = [p for p in rig.points if p["measurement"] == "air"]
     assert air[0]["time"] == 1764140000000
     rig.server.tick()
-    assert rig.server.current == Alert("warning", "co2")
+    assert rig.server.current == Alert("warning", "smoke")
 
 
 def test_ignores_own_alert_and_unknown_topics(rig):

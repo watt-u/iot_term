@@ -18,7 +18,7 @@
 | 10 | Server, database, dashboard | Mosquitto → server.py → InfluxDB → Grafana. Live and history screenshots | 11–13 |
 | 11 | Evaluation: numbers | fps table, accuracy table, latency | 9.1 |
 | 12 | Evaluation: cases | 3 successes and 3 failures, with images | 9.2 |
-| 13 | Strengths and limitations | Strengths: low cost, works offline, context from several sensors. Limitations: no IR, sunglasses, MQ-135 is approximate, single camera | 14.4 |
+| 13 | Strengths and limitations | Strengths: low cost, works offline, context from several sensors. Limitations: no IR, sunglasses, MQ-2 ppm is approximate and not gas-specific, single camera | 14.4 |
 | 14 | Commercial comparison | Table below | 14.5 |
 | 15 | Conclusion and future work | IR camera, yawn detection, head pose, phone push alerts | — |
 
@@ -39,7 +39,7 @@
 | 0:20–0:50 | Problem and goal | Voice-over and title cards, SDG icons |
 | 0:50–1:40 | Hardware tour | Close-ups of the ESP32 with its sensors and the Pi with the camera; label each part on screen |
 | 1:40–2:20 | Architecture | Animated or annotated diagram; follow one alert through the topics |
-| 2:20–3:30 | Live demo | Split screen: driver camera + Grafana. Close eyes → alert. Breathe on CO₂ → warning. Tap the IMU → impact. Lean in → too close |
+| 2:20–3:30 | Live demo | Split screen: driver camera + Grafana. Close eyes → alert. Smoke near the MQ-2 → warning. Cover the LDR → dark. Tap the IMU → impact. Lean in → too close |
 | 3:30–4:00 | AI caption | Grafana events table showing the caption |
 | 4:00–4:40 | Evaluation | fps and accuracy numbers, success and failure clips |
 | 4:40–5:00 | Wrap-up | Strengths, limitations, team |

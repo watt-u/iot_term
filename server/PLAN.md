@@ -42,8 +42,8 @@ server/
    Publish `car/cmd/alert` (retained, QoS 1) on change and every 2 s. Also write it to the `alert` measurement.
 3. [x] **Stale data:** if a source has been silent for more than 5 s, mark it offline in the dashboard. A silent source never triggers `danger`.
 4. [x] **Grafana dashboard** (refresh 1 s for live, plus the time picker for history):
-   - Row 1, now: driver state (stat panel: green, yellow, red), alert level, fps, CO₂, cabin temp.
-   - Row 2, time series: EAR with the threshold line, distance, accel magnitude, sound, CO₂ and temp.
+   - Row 1, now: driver state (stat panel: green, yellow, red), alert level, fps, smoke, cabin temp.
+   - Row 2, time series: EAR with the threshold line, distance, accel magnitude, cabin light, smoke and temp.
    - Row 3, events: a table of alerts (time, level, reason, AI caption) from the `alert` measurement.
    - Optional: the live annotated camera from `http://g3pi.local:8000` in a text panel (needs `disable_sanitize_html`).
 5. [x] Export the dashboard JSON to `grafana/dashboards/car.json` so it is provisioned and survives a rebuild.

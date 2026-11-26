@@ -64,8 +64,8 @@ Also report the **calibrated EAR threshold** for each subject (from `--calibrate
 | Sensor | Test | Expected | Result |
 |---|---|---|---|
 | MPU6050 | Drop the board onto a cushion from 20 cm | `impact: true`, `a_mag` > 2.5 g | |
-| Microphone | Clap 30 cm away | `loud: true` | |
-| CO₂ | Breathe on it for 5 s | Clear rise above baseline | |
+| LDR | Cover it with a hand, then shine a phone torch on it | `dark: true` when covered, `light` near 100 % with the torch | |
+| MQ-2 | Blown-out match or unlit lighter gas 10 cm away, 5 s | `smoke` clearly above baseline, > 300 ppm → warning | |
 | KY-001 | Hold it in your hand for 30 s | Rises toward 30+ °C | |
 | Ultrasonic | Hand at 20 / 40 / 60 cm (ruler) | Within ±2 cm | |
 

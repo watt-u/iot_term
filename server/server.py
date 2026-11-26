@@ -32,7 +32,7 @@ from rules import ALERT_OK, TOPIC_SOURCE, Alert, RulesEngine, Thresholds
 # ============================================================================
 # Thresholds (docs/mqtt_contract.md -> "Alert rules"). Tune here.
 # ============================================================================
-CO2_WARN_PPM = 1500  # warning: co2 > 1500 ppm
+SMOKE_WARN_PPM = 300  # warning: MQ-2 smoke estimate > 300 ppm
 TEMP_WARN_C = 35  # warning: cabin temp > 35 °C
 DISTANCE_WARN_CM = 25  # warning: head-to-wheel distance < 25 cm ...
 DISTANCE_HOLD_S = 3  # ... for 3 s
@@ -45,7 +45,7 @@ TICK_S = 0.25  # rules evaluation period
 REPUBLISH_S = 2.0  # car/cmd/alert heartbeat
 
 THRESHOLDS = Thresholds(
-    co2_ppm=CO2_WARN_PPM,
+    smoke_ppm=SMOKE_WARN_PPM,
     temp_c=TEMP_WARN_C,
     distance_cm=DISTANCE_WARN_CM,
     distance_hold_s=DISTANCE_HOLD_S,
@@ -76,7 +76,11 @@ MEASUREMENTS: dict[str, tuple[str, dict[str, str], dict[str, str]]] = {
         {"source": "esp32"},
         {"ax": FLOAT, "ay": FLOAT, "az": FLOAT, "gx": FLOAT, "gy": FLOAT, "gz": FLOAT, "a_mag": FLOAT, "impact": BOOL},
     ),
-    "car/node/air": ("air", {"source": "esp32"}, {"co2": FLOAT, "sound": FLOAT, "loud": BOOL}),
+    "car/node/air": (
+        "air",
+        {"source": "esp32"},
+        {"smoke": FLOAT, "smoke_raw": INT, "light": FLOAT, "light_raw": INT, "dark": BOOL},
+    ),
     "car/gateway/cabin": ("cabin", {"source": "pi"}, {"temp": FLOAT, "distance": FLOAT}),
     "car/vision/driver": (
         "driver",

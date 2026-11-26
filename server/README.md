@@ -60,7 +60,7 @@ average on the slides.
 ### Behavior notes
 
 - **ts:** `ts: 0` (ESP32), a missing ts, or one more than a day away from the Pi clock is replaced with the receive time.
-- **Types:** numeric fields are always written as floats (`closed_frames`, `drowsy`, `level_num` as integers), so a sender that switches between `820` and `820.5` never causes an InfluxDB type conflict. `null` fields are skipped. Fields not in the contract table (e.g. `co2_raw`) are not stored.
+- **Types:** numeric fields are always written as floats (`closed_frames`, `drowsy`, `level_num`, `smoke_raw`, `light_raw` as integers), so a sender that switches between `820` and `820.5` never causes an InfluxDB type conflict. `null` fields are skipped. Fields not in the contract table (e.g. an extra debug field) are not stored.
 - **Alerts:** evaluated every 250 ms and right after each `car/vision/driver` message. `car/cmd/alert` is published retained with QoS 1 on change and every 2 s (only while connected, so no burst of old alerts after a reconnect). Only *changes* are written to the `alert` measurement, so the events table lists events, not heartbeats.
 - **Stale:** a source silent > 5 s triggers nothing (no danger, no warning) and its held state (drowsy latch, impact hold, 3 s / 5 s timers) is dropped. The dashboard's *Sources* panel turns red for it.
 - **Distance:** a failed read (`null`) restarts the 3 s too-close window.
@@ -102,7 +102,7 @@ mosquitto_pub -h g3pi.local -t car/vision/driver -m '{"ts":0,"ear":0.30,"thresh"
 mosquitto_pub -h g3pi.local -t car/node/motion -m '{"ts":0,"ax":2.1,"ay":1.5,"az":1.2,"gx":0,"gy":0,"gz":0,"a_mag":2.85,"impact":true}'
 
 # Warnings
-mosquitto_pub -h g3pi.local -t car/node/air -m '{"ts":0,"co2":1800,"sound":12.0,"loud":false}'
+mosquitto_pub -h g3pi.local -t car/node/air -m '{"ts":0,"smoke":450,"smoke_raw":1900,"light":55.0,"light_raw":1840,"dark":false}'
 mosquitto_pub -h g3pi.local -t car/gateway/cabin -m '{"ts":0,"temp":36.5,"distance":48.0}'
 
 # AI caption: on the Pi, with a real JPEG
@@ -117,8 +117,8 @@ InfluxDB check: `http://g3pi.local:8086` (admin user from `.env`) → Data Explo
 **http://g3pi.local:3000** (anonymous viewers can open it; admin login from `.env` to edit).
 The *Car drowsiness detector* dashboard is the home page and refreshes every 1 s; use the time picker for history.
 
-- Row 1: driver state, alert level and reason, fps, CO₂, cabin temp, seconds since each source last sent data.
-- Row 2: EAR with threshold, distance (red below 25 cm), accel magnitude (2.5 g line), sound, CO₂ (1500 ppm), temp (35 °C).
+- Row 1: driver state, alert level and reason, fps, smoke, cabin temp, seconds since each source last sent data.
+- Row 2: EAR with threshold, distance (red below 25 cm), accel magnitude (2.5 g line), cabin light (%), smoke (300 ppm), temp (35 °C).
 - Row 3: alert events with the AI caption.
 - Collapsed row: live camera from `http://g3pi.local:8000` (needs the vision MJPEG stream running).
 

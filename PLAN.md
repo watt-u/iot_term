@@ -2,7 +2,7 @@
 
 **Goal:** A camera on a Raspberry Pi 5 watches the driver's eyes. When the driver gets drowsy, the system
 sounds a buzzer, turns a status LED red, logs the event, and stores an AI description of the snapshot.
-Sensors on an ESP32-S3 and the Pi add context: crash, air quality, cabin heat, cabin noise, and driver posture.
+Sensors on an ESP32-S3 and the Pi add context: crash, smoke, cabin light, cabin heat, and driver posture.
 
 **Deadline:** slides and video are due in myCourseVille by **Wed Dec 2, 2026, 09:00**.
 The internal target is **Tue Dec 1, 22:00**, so there is a night of slack.
@@ -35,7 +35,7 @@ M2 and M3 only depend on M1, so two people can do them at the same time.
 
 | # | When | Milestone | Done when |
 |---|---|---|---|
-| **M0** | Thu Nov 26 | **Plan and repo layout** | This file and the part plans exist. CO₂ sensor model confirmed. |
+| **M0** | Thu Nov 26 | **Plan and repo layout** | This file and the part plans exist. Sensor set confirmed (MQ-2 + LDR on the ESP32). |
 | **M1** | Thu 26 – Fri 27 | **Backbone:** network, broker, database and dashboard running on the Pi | `mosquitto_sub -h g3pi.local -t 'car/#' -v` on the Mac shows a test message. Grafana opens at `http://g3pi.local:3000`. |
 | **M2** | Fri 27 | **ESP32 node:** sensors publish, alerts drive the buzzer and LED | `car/node/motion` and `car/node/air` arrive at the expected rates. `mosquitto_pub -t car/cmd/alert -m '{"level":"danger"}'` makes the buzzer sound and the LED turn red. |
 | **M3** | Fri 27 – Sat 28 | **Pi gateway:** vision and Pi sensors publish | `car/vision/driver` shows EAR, state and fps. `car/gateway/cabin` shows temp and distance. |
@@ -46,7 +46,7 @@ M2 and M3 only depend on M1, so two people can do them at the same time.
 
 ### Order of work inside each milestone
 - **M1:** network decision (below) → Docker install on the Pi → `server/docker-compose.yml` → smoke test.
-- **M2:** Wi-Fi and MQTT → MPU6050 (reuse the current test) → mic (reuse the code from commit `f567fad`) → CO₂ → alert subscriber → buzzer and LED.
+- **M2:** Wi-Fi and MQTT → MPU6050 (reuse the current test) → LDR light → MQ-2 smoke → alert subscriber → buzzer and LED.
 - **M3:** MQTT publish inside `drowsiness/main.py` → wire the DS18B20 and ultrasonic → `sensors.py`.
 - **M4:** `server.py` writing to InfluxDB → rules → `car/cmd/alert` → Grafana dashboard (exported to JSON in `server/grafana/`).
 - **M5:** AI caption → end-to-end test → mount the rig (car or desk mock-up) → record footage.
@@ -57,9 +57,9 @@ M2 and M3 only depend on M1, so two people can do them at the same time.
 
 | # | Requirement | How we meet it | Milestone |
 |---|---|---|---|
-| 1 | ≥ 5 sensor types | Camera, IMU, sound, CO₂, temperature, ultrasonic (6) | M2, M3 |
+| 1 | ≥ 5 sensor types | Camera, IMU, smoke (MQ-2), light (LDR), temperature, ultrasonic (6) | M2, M3 |
 | 2 | ≥ 1 I2C sensor | MPU6050 on the ESP32 (SDA 10 / SCL 9) | M2 |
-| 3 | ≥ 2 sensor-node sensors | ESP32: MPU6050, microphone, CO₂ | M2 |
+| 3 | ≥ 2 sensor-node sensors | ESP32: MPU6050, MQ-2 smoke, LDR light | M2 |
 | 4 | ≥ 2 gateway sensors | Pi: camera, KY-001 temperature, ultrasonic | M3 |
 | 5 | ≥ 1 actuator | KY-012 buzzer and KY-016 RGB LED (see risks) | M2 |
 | 6 | Camera / video stream | Pi camera through `rpicam-vid`, MJPEG stream on :8000 | done |
@@ -83,11 +83,10 @@ M2 and M3 only depend on M1, so two people can do them at the same time.
 - **Broker address:** the ESP32 finds the Pi by mDNS (`g3pi.local`) and falls back to a fixed IP set in `secrets.h`.
 - **Server runs on the Pi** (on-premise). Mosquitto, InfluxDB and Grafana run in Docker. `server.py` runs on the host with `uv`.
 - **Alert decisions happen only in `server.py`.** The ESP32 and `vision.py` report data. Only the server publishes `car/cmd/alert`, so all rules live in one place.
-- **Mic is a KY-037/038 analog module** on GPIO 4 (found in commit `f567fad`).
+- **ESP32 sensors (changed 2026-11-26):** the CO₂ sensor became an **MQ-2 smoke/gas sensor** (GPIO 6 via a 10k/20k divider) and the microphone was dropped for an **LDR photosensitive module** (AO on GPIO 4, 3V3).
 
 ## Open questions
 
-- [ ] **CO₂ sensor model:** MQ-135 (analog, 5 V heater, estimates only), MH-Z19 (UART), or SCD40/SCD41 (I2C)? This sets the wiring and code in M2.
 - [ ] **AI provider:** Gemini, Claude or OpenAI vision. Pick whichever the team already has an API key for.
 - [ ] **Demo setting:** a real parked car, or a desk mock-up with a steering wheel prop?
 - [ ] **Team split:** who owns ESP32, Pi gateway, server and dashboard, and slides and video?
@@ -99,6 +98,6 @@ M2 and M3 only depend on M1, so two people can do them at the same time.
 | Graders don't count a buzzer as an actuator ("motor, pump, etc.") | −1 point | Ask the TA early. Backup: a cheap vibration motor (a seat or wheel buzz) with a transistor. |
 | Pi CPU is overloaded by MediaPipe plus Docker | Low fps | Keep the camera at 640×480 and 15 fps, turn the MJPEG stream off during fps tests, and watch `htop`. |
 | Dark cabin, sunglasses | Missed detections | Record these as qualitative failures (9.2). Mention NoIR camera plus IR LEDs as future work. |
-| MQ-135 isn't a true CO₂ sensor | Weak data | Call it an "air quality index" on the slides and list it as a limitation. |
+| MQ-2 ppm is an estimate and reacts to many gases | Weak data | Call it a "smoke/gas level" on the slides, show `smoke_raw` too, and list it as a limitation. Demo with a blown-out match or a lighter (gas, unlit). |
 | Wi-Fi drops in the car | No alerts | The ESP32 reconnects automatically. On loss of MQTT for 5 s, the LED blinks blue. |
 | Running out of time | Missed deadline | Record raw footage on M5 (Sun), not on the last day. Slides start in parallel on M6. |
