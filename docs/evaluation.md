@@ -2,6 +2,19 @@
 
 Fill the tables in as you go. Keep the raw logs and frames in `docs/eval_data/`, and don't commit large video files.
 
+## Tools
+
+Scripts in `tools/eval/` are standalone uv scripts. Run them from the repo root on the Mac or the Pi while the live system is up; each has `--help`.
+
+| Script | For | Run |
+|---|---|---|
+| `trials.py` | 9.1b trials | `uv run tools/eval/trials.py --subject alice --condition good` asks for anything missing, shuffles 10 positive + 10 negative trials (`-n`, or a fixed `--order PNPN…`), counts down, then listens to `car/vision/driver` for 10 s. A trial fires if any message says `drowsy`. Each trial is appended to `docs/eval_data/trials.csv`. A window with no messages (broker down or vision stopped) is saved with `valid=0`. Conditions: `good`, `dim`, `glasses`, `sunglasses`, `head30`. |
+| `report.py` | 9.1b table | `uv run tools/eval/report.py` (add `--subject` to filter) prints the accuracy table above as markdown. It skips invalid trials and shows `n/a` when a ratio would divide by zero. |
+| `fps_report.py` | 9.1a fps table | `uv run tools/eval/fps_report.py --last 5m --setup "Vision only, no MJPEG stream"` (or `--start 2026-11-30T14:00 --stop 2026-11-30T14:05`, local time) reads `driver.fps` from InfluxDB and prints the mean, min, p5 and sample count, plus a table row. It needs `INFLUX_ORG` and `INFLUX_TOKEN`. `INFLUX_URL` defaults to `http://g3pi.local:8086` and `INFLUX_BUCKET` to `car`. |
+| `latency.py` | 9.1a latency (software part) | `uv run tools/eval/latency.py [--csv docs/eval_data/latency.csv]` waits for each change to `drowsy`, then times the next `danger` alert two ways: from the Pi `ts` stamps and from receive times on this machine. Press Ctrl-C to print mean ± SD. It does not include eye closure to `drowsy` or the buzzer itself. Measure those with the phone video. |
+
+Tests for the metric math: `uv run --with pytest pytest tools/eval`.
+
 ## 9.1a — Speed (fps and latency)
 
 **Method:** vision reports rolling fps in `car/vision/driver`, which is stored in InfluxDB. Run each setup for 5 minutes,

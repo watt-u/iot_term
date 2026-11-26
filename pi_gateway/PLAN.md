@@ -20,13 +20,13 @@ Topics and payloads: [../docs/mqtt_contract.md](../docs/mqtt_contract.md). Deplo
 
 ## Steps — vision (`drowsiness/`)
 
-1. [ ] Add `paho-mqtt>=2` to `pyproject.toml`, and add `drowsiness/mqtt.py`, a small publisher that reconnects by itself.
-2. [ ] In `main.py`, publish `car/vision/driver` at 2 Hz and at once on every state change (`open` / `closed` / `drowsy` / `no_face`).
-3. [ ] Compute a **rolling fps** (last 30 frames) as well as the overall average, and send it in the payload.
+1. [x] Add `paho-mqtt>=2` to `pyproject.toml`, and add `drowsiness/mqtt.py`, a small publisher that reconnects by itself.
+2. [x] In `main.py`, publish `car/vision/driver` at 2 Hz and at once on every state change (`open` / `closed` / `drowsy` / `no_face`). *(implemented, untested on Pi)*
+3. [x] Compute a **rolling fps** (last 30 frames) as well as the overall average, and send it in the payload.
    The current code prints only the average since startup.
-4. [ ] When the state becomes `drowsy`, save the JPEG as now and put its absolute path in `snapshot`.
-5. [ ] Add `--mqtt-host` (default `localhost`) and `--no-stream` (for clean fps tests).
-6. [ ] Add a `systemd` unit (`pi_gateway/systemd/vision.service`) so the program starts on boot for the demo.
+4. [x] When the state becomes `drowsy`, save the JPEG as now and put its absolute path in `snapshot`. *(implemented, untested on Pi)*
+5. [x] Add `--mqtt-host` (default `localhost`) and `--no-stream` (for clean fps tests).
+6. [x] Add a `systemd` unit (`pi_gateway/systemd/vision.service`) so the program starts on boot for the demo. *(implemented, untested on Pi)*
 
 *Check:* `mosquitto_sub -t car/vision/driver -v` shows `drowsy` within about 1 s (15 frames at 15 fps) of closing your eyes.
 
@@ -38,12 +38,17 @@ Run this with the **system Python** (`/usr/bin/python3`), not the uv venv, so th
 sudo apt install python3-gpiozero python3-lgpio python3-paho-mqtt
 ```
 
-1. [ ] DS18B20: read `/sys/bus/w1/devices/28-*/w1_slave` (no library needed). Retry once on a CRC error.
-2. [ ] HC-SR04: `gpiozero.DistanceSensor(echo=24, trigger=23, max_distance=2)`. Use the median of 5 readings.
-3. [ ] Publish `car/gateway/cabin` at 1 Hz. Send `null` for a failed read so the program never crashes.
-4. [ ] Add a `systemd` unit (`pi_gateway/systemd/sensors.service`).
+1. [x] DS18B20: read `/sys/bus/w1/devices/28-*/w1_slave` (no library needed). Retry once on a CRC error. *(implemented, untested on Pi)*
+2. [x] HC-SR04: `gpiozero.DistanceSensor(echo=24, trigger=23, max_distance=2)`. Use the median of 5 readings. *(implemented, untested on Pi)*
+3. [x] Publish `car/gateway/cabin` at 1 Hz. Send `null` for a failed read so the program never crashes. *(implemented, untested on Pi)*
+4. [x] Add a `systemd` unit (`pi_gateway/systemd/sensors.service`). *(implemented, untested on Pi)*
 
 *Check:* hold the sensor in your hand and the temperature rises. Move a hand toward the ultrasonic and the distance drops.
+
+## Status
+
+Code, tests (`uv run pytest`), systemd units and README are done on the Mac.
+Nothing has run on the Pi yet: the checks above and the "Done when" list below are still open.
 
 ## Done when
 - Both topics flow for 10 minutes with the server stack running alongside.

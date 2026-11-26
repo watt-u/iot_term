@@ -1,0 +1,17 @@
+[Unit]
+Description=Car cabin sensors (DS18B20 + HC-SR04 -> car/gateway/cabin)
+Wants=network-online.target
+After=network-online.target docker.service
+
+[Service]
+Type=simple
+User=bum
+WorkingDirectory=/home/bum/iot_term/pi_gateway
+Environment=PYTHONUNBUFFERED=1
+# System python3 (apt: python3-gpiozero python3-lgpio python3-paho-mqtt), not the uv venv.
+ExecStart=/usr/bin/python3 sensors.py --mqtt-host localhost
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

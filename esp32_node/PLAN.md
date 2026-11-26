@@ -34,23 +34,30 @@ Keep it in a few small files under `src/`:
 | `co2.cpp/.h` | Depends on the model |
 | `alert.cpp/.h` | Parse `car/cmd/alert` with ArduinoJson; set the LED color and buzzer pattern |
 | `secrets.h` | Wi-Fi SSID, password, fallback broker IP. **Gitignored.** Commit a `secrets.example.h`. |
+| `config.h` | Pins, rates, thresholds and the `CO2_SENSOR` choice |
 
 Libraries for `lib_deps`: `knolleary/PubSubClient`, `bblanchon/ArduinoJson@^7`. (MPU6050 stays raw I2C, no library.)
 
 ## Steps
 
-1. [ ] **Wi-Fi and MQTT.** Connect to the phone hotspot, find the broker, publish `{"hello":1}` to `car/node/air`.
+1. [x] **Wi-Fi and MQTT.** Connect to the phone hotspot, find the broker, publish `{"hello":1}` to `car/node/air`.
+   *Implemented, untested on hardware* (`net.cpp`). No separate hello message: the normal 1 Hz `car/node/air` message is the first thing you see.
    *Check:* `mosquitto_sub -h g3pi.local -t 'car/#' -v` shows it.
-2. [ ] **IMU.** Move the MPU6050 code into `imu.cpp`. Publish `car/node/motion` at 5 Hz.
+2. [x] **IMU.** Move the MPU6050 code into `imu.cpp`. Publish `car/node/motion` at 5 Hz.
+   *Implemented, untested on hardware* (`imu.cpp`). Accel range is now ±8 g (±2 g could never reach the 2.5 g impact threshold).
    *Check:* tap the board hard; `impact: true` shows up.
-3. [ ] **Mic.** Bring back the sound-level code. Add `sound` and `loud` to `car/node/air`.
+3. [x] **Mic.** Bring back the sound-level code. Add `sound` and `loud` to `car/node/air`.
+   *Implemented, untested on hardware* (`mic.cpp`, now non-blocking).
    *Check:* clap; `loud: true` shows up.
-4. [ ] **CO₂.** Read the sensor and add `co2`.
+4. [x] **CO₂.** Read the sensor and add `co2`.
+   *Implemented for all three models, untested on hardware* (`co2.cpp`, pick with `CO2_SENSOR` in `config.h`, default MQ-135).
    *Check:* breathe on it; the value goes up.
-5. [ ] **Alert subscriber.** Subscribe to `car/cmd/alert`. Green = ok, yellow = warning, red and beeping (200 ms on / 200 ms off) = danger.
+5. [x] **Alert subscriber.** Subscribe to `car/cmd/alert`. Green = ok, yellow = warning, red and beeping (200 ms on / 200 ms off) = danger.
    *Check:* `mosquitto_pub -h g3pi.local -t car/cmd/alert -r -m '{"level":"danger","reason":"test"}'`.
-6. [ ] **Fail-safe.** If MQTT has been down for more than 5 s, blink blue and keep retrying. Serial prints each reconnect.
+   *Implemented, untested on hardware* (`alert.cpp`, also mirrored on the onboard RGB LED).
+6. [x] **Fail-safe.** If MQTT has been down for more than 5 s, blink blue and keep retrying. Serial prints each reconnect.
    *Check:* stop Mosquitto; the LED blinks blue; start it again and it recovers.
+   *Implemented, untested on hardware.*
 
 ## Done when
 - Both publish topics arrive at their rates for 10 minutes without a reset (watch with `serial_capture.py`).

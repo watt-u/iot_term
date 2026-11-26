@@ -33,28 +33,30 @@ Every part follows this file. If you change a topic or a field, change it here f
 {"ts": 0, "co2": 820, "sound": 14.2, "loud": false}
 ```
 - `co2` in ppm. For an MQ-135, it's an estimate; also send `co2_raw` (ADC counts).
-- `sound` = mean absolute deviation of the mic ADC over a 20 ms window (same as commit `f567fad`).
-- `loud` = the existing loud-trigger result (5× background).
+- `sound` = the loudest 20 ms window of the last second (mean absolute deviation of the mic ADC, same method as commit `f567fad`).
+- `loud` = true if the loud trigger (5× background) fired at any time in that second.
 
 ### `car/gateway/cabin`
 ```json
 {"ts": 1764140000.1, "temp": 31.4, "distance": 48.0}
 ```
-- `temp` in °C (DS18B20), `distance` in cm (HC-SR04). Send `null` for a failed read.
+- `temp` in °C (DS18B20), `distance` in cm (HC-SR04). Send `null` for a failed read. A DS18B20 reading of exactly 85.0 °C is its power-on reset value and is sent as `null`.
 
 ### `car/vision/driver`
 ```json
 {"ts": 1764140000.5, "ear": 0.27, "thresh": 0.21, "state": "open", "closed_frames": 0, "fps": 14.6, "snapshot": null}
 ```
-- `state`: `open` | `closed` | `drowsy` | `no_face`.
-- `snapshot`: absolute path on the Pi of the saved JPEG, only on the message where `state` becomes `drowsy`; otherwise `null`.
+- `state`: `open` | `closed` | `drowsy` | `no_face`. `ear` is `null` when `state` is `no_face`.
+- `snapshot`: absolute path on the Pi of the saved JPEG **without** the on-screen overlay (`*_raw.jpg`), only on the message where `state` becomes `drowsy`; otherwise `null`.
 
 ### `car/cmd/alert`
 ```json
 {"ts": 1764140000.6, "level": "danger", "reason": "drowsy"}
 ```
-- `level`: `ok` | `warning` | `danger`.
-- `reason`: `none` | `drowsy` | `impact` | `co2` | `heat` | `too_close` | `no_face`.
+- `level`: `ok` | `warning` | `danger` | `offline`.
+- `reason`: `none` | `drowsy` | `impact` | `co2` | `heat` | `too_close` | `no_face` | `server_offline`.
+- **Change vs. heartbeat:** server.py publishes on every change and re-sends the current level every 2 s. Only changes are written to InfluxDB.
+- **Offline:** server.py sets a retained last will `{"level": "offline", "reason": "server_offline"}` on this topic and publishes it on a clean shutdown. The ESP32 blinks blue (buzzer off) on `offline`, and also when no alert has arrived for 6 s.
 
 ## Alert rules (implemented in server.py)
 
@@ -66,7 +68,8 @@ Every part follows this file. If you change a topic or a field, change it here f
 
 - The highest level wins. `reason` names the trigger with the highest level; if two triggers tie, `drowsy` wins.
 - `danger` from `drowsy` clears 2 s after vision reports `open` again.
-- Thresholds go at the top of `server.py` as constants, so they're easy to tune and show on a slide.
+- Thresholds go at the top of `server.py` (in `rules.py`) as constants, so they're easy to tune and show on a slide.
+- A source silent for more than 5 s is **stale**: it triggers nothing (not even a warning), and its held state (drowsy latch, impact hold, 3 s / 5 s timers) is dropped.
 
 ## InfluxDB mapping (bucket `car`)
 

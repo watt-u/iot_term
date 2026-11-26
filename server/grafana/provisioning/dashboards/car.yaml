@@ -1,0 +1,13 @@
+# Loads every dashboard JSON in /etc/grafana/dashboards (= ./grafana/dashboards).
+apiVersion: 1
+
+providers:
+  - name: car
+    folder: ""
+    type: file
+    disableDeletion: true
+    allowUiUpdates: true
+    updateIntervalSeconds: 30
+    options:
+      path: /etc/grafana/dashboards
+      foldersFromFilesStructure: false

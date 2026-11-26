@@ -1,0 +1,23 @@
+# server.py as a systemd service on the Pi.
+# Install: sudo cp systemd/server.service /etc/systemd/system/car-server.service
+#          sudo systemctl daemon-reload && sudo systemctl enable --now car-server
+# Logs:    journalctl -u car-server -f
+[Unit]
+Description=Car drowsiness server (MQTT -> InfluxDB, alert rules, AI captions)
+After=docker.service network-online.target
+Wants=network-online.target docker.service
+
+[Service]
+Type=simple
+User=bum
+WorkingDirectory=/home/bum/iot_term/server
+# uv is installed per user (~/.local/bin); systemd does not read the login PATH.
+Environment=PATH=/home/bum/.local/bin:/usr/local/bin:/usr/bin:/bin
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/home/bum/.local/bin/uv run --frozen python server.py
+Restart=always
+RestartSec=3
+TimeoutStopSec=40
+
+[Install]
+WantedBy=multi-user.target
