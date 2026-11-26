@@ -1,0 +1,9 @@
+.DS_Store
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+
+# PlatformIO (more in iot_term_v1/.gitignore)
+.pio/
